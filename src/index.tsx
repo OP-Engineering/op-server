@@ -36,14 +36,14 @@ if (global.__OPServerProxy == null) {
   const installed = OpServer.install();
   if (!installed) {
     throw new Error(
-      `Failed to install op-sqlite: The native OPSQLite Module could not be installed! Looks like something went wrong when installing JSI bindings, check the native logs for more info`
+      `Failed to install op-server: The Native Module could not be installed! Looks like something went wrong when installing JSI bindings, check the native logs for more info`
     );
   }
 
   // Check again if the constructor now exists. If not, throw an error.
   if (global.__OPServerProxy == null) {
     throw new Error(
-      'OPSqlite native object is not available. Something is wrong. Check the native logs for more information.'
+      'OP Server native object is not available. Something is wrong. Check the native logs for more information.'
     );
   }
 }
