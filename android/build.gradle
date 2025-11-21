@@ -63,6 +63,13 @@ android {
     prefabPublishing true
   }
 
+
+  prefab {
+    "op-server" {
+      headers "${project.buildDir}/headers/op-server/"
+    }
+  }
+
   packagingOptions {
     excludes = [
             "META-INF",
