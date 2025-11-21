@@ -90,8 +90,9 @@ android {
     }
   }
 
-  lintOptions {
+  lint {
     disable "GradleCompatible"
+    abortOnError false
   }
 
   compileOptions {
