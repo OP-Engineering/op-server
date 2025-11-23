@@ -113,7 +113,11 @@ Server::Server(jsi::Runtime &rt, std::shared_ptr<react::CallInvoker> invoker) {
   });
 
   function_map["listen"] = HFN(this) {
-    std::thread([this]() { server.listen("0.0.0.0", 3000); }).detach();
+    int port = 3000;
+    if (count > 0 && args[0].isNumber()) {
+      port = static_cast<int>(args[0].asNumber());
+    }
+    std::thread([this, port]() { server.listen("0.0.0.0", port); }).detach();
     return {};
   });
 
