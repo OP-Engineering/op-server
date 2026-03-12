@@ -5,6 +5,8 @@
 #include "Request.hpp"
 #include "Response.hpp"
 #include "macros.hpp"
+#include <cerrno>
+#include <cstring>
 #include <future>
 #include <iostream>
 
@@ -13,15 +15,15 @@ namespace opserver {
 namespace jsi = facebook::jsi;
 namespace react = facebook::react;
 
-Server::Server(jsi::Runtime &rt, const std::shared_ptr<react::CallInvoker>& invoker) {
+Server::Server(jsi::Runtime &rt,
+               const std::shared_ptr<react::CallInvoker> &invoker) {
   function_map["callback"] = HFN2(this, invoker) {
     const std::string method = args[0].asString(rt).utf8(rt);
     const std::string path = args[1].asString(rt).utf8(rt);
     auto callback = std::make_shared<jsi::Value>(rt, args[2]);
 
-    auto handleRequest = [invoker,
-                          callback](const httplib::Request &req,
-                                    httplib::Response &res) {
+    auto handleRequest = [invoker, callback](const httplib::Request &req,
+                                             httplib::Response &res) {
       auto responseDone = std::make_shared<std::promise<void>>();
       auto responseFuture = responseDone->get_future();
 
@@ -117,15 +119,36 @@ Server::Server(jsi::Runtime &rt, const std::shared_ptr<react::CallInvoker>& invo
     if (count > 0 && args[0].isNumber()) {
       port = static_cast<int>(args[0].asNumber());
     }
-    std::thread([this, port]() { server.listen("0.0.0.0", port); }).detach();
-    return {};
+
+    if (listen_thread.joinable()) {
+      throw std::runtime_error("[op-server] Server is already listening");
+    }
+
+    const int bound_port = server.bind_to_port("0.0.0.0", port);
+    if (bound_port < 0) {
+      const std::string err = std::strerror(errno);
+      throw std::runtime_error("[op-server] Failed to bind server to 0.0.0.0:" +
+                               std::to_string(port) + " (" + err + ")");
+    }
+
+    listen_thread = std::thread([this]() {
+      const bool ok = server.listen_after_bind();
+      if (!ok) {
+        std::cerr << "[op-server] Server stopped unexpectedly while listening"
+                  << std::endl;
+      }
+    });
+
+    return jsi::Value(bound_port);
   });
 
   function_map["stop"] = HFN(this) {
-    server.stop();
+    stop();
     return {};
   });
 }
+
+Server::~Server() { stop(); }
 
 std::vector<jsi::PropNameID> Server::getPropertyNames(jsi::Runtime &_rt) {
   std::vector<jsi::PropNameID> keys;
@@ -148,7 +171,12 @@ jsi::Value Server::get(jsi::Runtime &rt, const jsi::PropNameID &propNameID) {
   return {rt, function_map[name]};
 }
 
-void Server::stop() { server.stop(); }
+void Server::stop() {
+  server.stop();
+  if (listen_thread.joinable()) {
+    listen_thread.join();
+  }
+}
 
 } // namespace opserver
 
