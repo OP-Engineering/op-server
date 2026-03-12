@@ -54,8 +54,8 @@ export class HttpServer {
     this._server = OPServer.create();
   }
 
-  listen(port: number) {
-    this._server.listen(port);
+  listen(port: number): number {
+    return this._server.listen(port);
   }
 
   get(path: string, callback: RequestHandler) {
